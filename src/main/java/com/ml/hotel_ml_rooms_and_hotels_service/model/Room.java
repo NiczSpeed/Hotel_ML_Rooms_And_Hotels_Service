@@ -2,10 +2,7 @@ package com.ml.hotel_ml_rooms_and_hotels_service.model;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDate;
 import java.util.UUID;
@@ -15,6 +12,7 @@ import java.util.UUID;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
+@ToString(exclude = "hotel")
 @Table(name = "Rooms")
 public class Room {
 
@@ -24,7 +22,7 @@ public class Room {
     private UUID uuid;
 
     @Column(name = "number")
-    private long number;
+    private Long number;
 
     @Column(name = "numberOfBeds")
     private long numberOfBeds;

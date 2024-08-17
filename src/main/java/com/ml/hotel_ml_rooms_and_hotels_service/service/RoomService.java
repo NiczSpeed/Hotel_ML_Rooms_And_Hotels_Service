@@ -77,23 +77,28 @@ public class RoomService {
         try {
             JSONObject json = decodeMessage(message);
             String messageId = json.optString("messageId");
-            RoomDto roomDto = new RoomDto();
-            Room room;
-            roomDto.setNumber(json.optInt("number"));
-            roomDto.setDescription(json.optString("description"));
-            roomDto.setPrice(json.optDouble("price"));
-            roomDto.setNumberOfBeds(json.optInt("numberOfBeds"));
-            if (json.optString("status").isEmpty()) {
-                roomDto.setStatus(RoomStatus.FREE);
+            if (hotelRepository.findAll().isEmpty()) {
+                sendRequestMessage("Error:There is no hotel to add rooms!", messageId, "error_request_topic");
+            } else if (!roomRepository.findAll().isEmpty() && hotelRepository.findByName(json.getString("hotel")).getRooms().stream().anyMatch(room -> room.getNumber() == json.getLong("number"))) {
+                sendRequestMessage("Error:In this hotel already exist room with this number!", messageId, "error_request_topic");
+            } else {
+                RoomDto roomDto = new RoomDto();
+                Room room;
+                roomDto.setNumber(json.optLong("number"));
+                roomDto.setDescription(json.optString("description"));
+                roomDto.setPrice(json.optDouble("price"));
+                roomDto.setNumberOfBeds(json.optInt("numberOfBeds"));
+                if (json.optString("status").isEmpty()) {
+                    roomDto.setStatus(RoomStatus.FREE);
+                } else {
+                    roomDto.setStatus(RoomStatus.valueOf(json.optString("status")));
+                }
+                room = RoomMapper.Instance.mapRoomDtoToRoom(roomDto);
+                room.setHotel(hotelRepository.findByName(json.getString("hotel")));
+                roomRepository.save(room);
+                logger.info("Room was addedd: " + room);
+                sendRequestMessage("Room Successfully added!", messageId, "success_request_topic");
             }
-            else {
-                roomDto.setStatus(RoomStatus.valueOf(json.optString("status")));
-            }
-            room = RoomMapper.Instance.mapRoomDtoToRoom(roomDto);
-            room.setHotel(hotelRepository.findByName(json.getString("hotel")));
-            roomRepository.save(room);
-            logger.info("Room was addedd: " + room);
-            sendRequestMessage("Room Successfully added!", messageId, "success_request_topic");
 
         } catch (Exception e) {
             logger.severe("Error while creating room: " + e.getMessage());

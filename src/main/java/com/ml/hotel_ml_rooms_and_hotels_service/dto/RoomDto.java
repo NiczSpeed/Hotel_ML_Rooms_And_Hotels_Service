@@ -7,13 +7,13 @@ import java.util.UUID;
 
 @Getter
 @Setter
-@ToString
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 public class RoomDto {
 
-    private long number;
+    private Long number;
     private long numberOfBeds;
     private RoomStatus status;
     private double price;
