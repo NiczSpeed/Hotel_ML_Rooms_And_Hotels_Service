@@ -7,6 +7,11 @@ plugins {
 group = "com.ml"
 version = "0.0.1-SNAPSHOT"
 
+val mapstructVersion = "1.5.5.Final"
+val junitJupiterVersion = "5.10.2"
+val instancioVersion = "4.4.0"
+val jsonVersion = "20240303"
+
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
@@ -27,11 +32,16 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.kafka:spring-kafka")
+    implementation("org.mapstruct:mapstruct:${mapstructVersion}")
+    implementation("org.json:json:${jsonVersion}")
     compileOnly("org.projectlombok:lombok")
-    developmentOnly("org.springframework.boot:spring-boot-docker-compose")
     runtimeOnly("org.postgresql:postgresql")
     annotationProcessor("org.projectlombok:lombok")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:${junitJupiterVersion}")
+    testImplementation("org.instancio:instancio-junit:${instancioVersion}")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:${junitJupiterVersion}")
+    annotationProcessor("org.mapstruct:mapstruct-processor:${mapstructVersion}")
     testImplementation("org.springframework.kafka:spring-kafka-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
