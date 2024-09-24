@@ -89,7 +89,7 @@ public class RoomService {
                 roomDto.setPrice(json.optDouble("price"));
                 roomDto.setNumberOfBeds(json.optInt("numberOfBeds"));
                 if (json.optString("status").isEmpty()) {
-                    roomDto.setStatus(RoomStatus.FREE);
+                    roomDto.setStatus(RoomStatus.OK);
                 } else {
                     roomDto.setStatus(RoomStatus.valueOf(json.optString("status")));
                 }

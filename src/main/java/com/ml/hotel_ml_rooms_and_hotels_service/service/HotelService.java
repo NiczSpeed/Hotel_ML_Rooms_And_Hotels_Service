@@ -2,18 +2,15 @@ package com.ml.hotel_ml_rooms_and_hotels_service.service;
 
 import com.ml.hotel_ml_rooms_and_hotels_service.dto.FreeHotelDto;
 import com.ml.hotel_ml_rooms_and_hotels_service.dto.HotelDto;
-import com.ml.hotel_ml_rooms_and_hotels_service.dto.RoomDto;
 import com.ml.hotel_ml_rooms_and_hotels_service.maper.FreeHotelMapper;
 import com.ml.hotel_ml_rooms_and_hotels_service.maper.HotelMapper;
 import com.ml.hotel_ml_rooms_and_hotels_service.model.Hotel;
-import com.ml.hotel_ml_rooms_and_hotels_service.model.Room;
 import com.ml.hotel_ml_rooms_and_hotels_service.model.RoomStatus;
 import com.ml.hotel_ml_rooms_and_hotels_service.repository.HotelRepository;
+import com.ml.hotel_ml_rooms_and_hotels_service.repository.RoomRepository;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
@@ -28,6 +25,7 @@ import java.util.stream.Collectors;
 @Service
 public class HotelService {
 
+    private final RoomRepository roomRepository;
     Logger logger = Logger.getLogger(getClass().getName());
 
     private final Map<String, CompletableFuture<String>> responseFutures = new ConcurrentHashMap<>();
@@ -36,9 +34,10 @@ public class HotelService {
     private final KafkaTemplate kafkaTemplate;
 
     @Autowired
-    public HotelService(HotelRepository hotelRepository, KafkaTemplate kafkaTemplate) {
+    public HotelService(HotelRepository hotelRepository, KafkaTemplate kafkaTemplate, RoomRepository roomRepository) {
         this.hotelRepository = hotelRepository;
         this.kafkaTemplate = kafkaTemplate;
+        this.roomRepository = roomRepository;
     }
 
     @KafkaListener(topics = "create_hotel_topic", groupId = "hotel_ml_rooms_and_hotels_service")
@@ -70,17 +69,19 @@ public class HotelService {
             LocalDate startDate = LocalDate.parse(json.optString("startDate"));
             LocalDate endDate = LocalDate.parse(json.optString("endDate"));
 
-            JSONObject reservationDataJson = new JSONObject().append("startDate", startDate).append("endDate", endDate).append("city", json.optString("city"));
+            JSONObject reservationDataJson = new JSONObject().put("startDate", startDate).put("endDate", endDate).put("city", json.optString("city"));
 
             Set<Hotel> hotels = hotelRepository.findByCity(json.getString("city"));
             Set<FreeHotelDto> freeHotelsDto = FreeHotelMapper.Instance.mapHotelSetToFreeHotelDtoSet(hotels);
 
-
-            filterFreeRooms(freeHotelsDto, reservationDataJson, reservationMessageId);
-
-            JSONArray jsonArray = new JSONArray(freeHotelsDto);
-            sendEncodedMessage(jsonArray.toString(), messageId, "response_free_hotels");
-            logger.info("Message was send.");
+            if (hotelRepository.findAll().isEmpty()) {
+                sendRequestMessage("Error:There is no hotel to get list!", messageId, "error_request_topic");
+            } else {
+                filterFreeRooms(freeHotelsDto, reservationDataJson, reservationMessageId);
+                JSONArray jsonArray = new JSONArray(freeHotelsDto);
+                sendEncodedMessage(jsonArray.toString(), messageId, "response_free_hotels");
+                logger.info("Message was send.");
+            }
 
         } catch (Exception e) {
             logger.severe("Error while getting hotels list!  " + e.getMessage());
@@ -127,21 +128,19 @@ public class HotelService {
     private void filterFreeRooms(Set<FreeHotelDto> freeHotelDtoSet, JSONObject json, String messageId) {
         CompletableFuture<String> responseFuture = new CompletableFuture<>();
         responseFutures.put(messageId, responseFuture);
-//        String messageWithId = attachMessageId(json.toString(), messageId);
-
         freeHotelDtoSet.forEach(hotel -> hotel.setRooms(
                 hotel.getRooms().stream()
                         .filter(room -> {
-                            if (room.getStatus().equals(RoomStatus.FREE)) {
-                                json.append("hotel", hotel.getName());
-                                json.append("room", room.getNumber());
-                                JSONObject messageJson = new JSONObject().append("message", json);
+                            if (!room.getStatus().equals(RoomStatus.TEMPORARILY_UNAVAILABLE)) {
+                                json.put("hotel", hotel.getName());
+                                json.put("room", room.getNumber());
+                                JSONObject messageJson = new JSONObject().put("message", json);
                                 String messageWithId = attachMessageId(messageJson.toString(), messageId);
                                 kafkaTemplate.send("check_reservation_topic", Base64.getEncoder().encodeToString(messageWithId.getBytes()));
                                 try {
                                     String response = responseFuture.get(5, TimeUnit.SECONDS);
                                     responseFutures.remove(messageId);
-                                    if (response.contains("False")) { // ma byc true
+                                    if (response.contains("True")) {
                                         return true;
                                     }
                                 } catch (InterruptedException | ExecutionException | TimeoutException e) {
@@ -151,7 +150,12 @@ public class HotelService {
                             return false;
                         }).collect(Collectors.toSet())
         ));
-        logger.severe(json.toString());
+
+        freeHotelDtoSet.forEach(hotel -> {
+            if (hotel.getRooms().isEmpty()) {
+                freeHotelDtoSet.remove(hotel);
+            }
+        });
     }
 
     @KafkaListener(topics = "boolean_reservation_topic", groupId = "hotel_ml_rooms_and_hotels_service")
