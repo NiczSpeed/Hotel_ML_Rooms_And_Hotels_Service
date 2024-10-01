@@ -40,4 +40,29 @@ public class KafkaTopicsConfiguration {
                 .build();
     }
 
+    @Bean
+    public NewTopic checkRoomReservationPriceTopic(){
+        return TopicBuilder.name("check_room_reservation_price")
+                .partitions(12)
+                .replicas(3)
+                .build();
+    }
+
+    @Bean
+    public NewTopic roomPriceTopic(){
+        return TopicBuilder.name("room_price_topic")
+                .partitions(12)
+                .replicas(3)
+                .build();
+    }
+
+    @Bean
+    public NewTopic responseCreateReservationTopic(){
+        return TopicBuilder.name("response_create_reservation_topic")
+                .partitions(12)
+                .replicas(3)
+                .build();
+    }
+
+
 }

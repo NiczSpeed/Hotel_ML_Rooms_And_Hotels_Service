@@ -30,8 +30,11 @@ public class Room {
     @Column(name = "status")
     private RoomStatus status;
 
-    @Column(name = "price")
-    private double price;
+    @Column(name = "weekPrice")
+    private double weekPrice;
+
+    @Column(name = "weekendPrice")
+    private double weekendPrice;
 
     @Column(name = "description")
     private String description;
