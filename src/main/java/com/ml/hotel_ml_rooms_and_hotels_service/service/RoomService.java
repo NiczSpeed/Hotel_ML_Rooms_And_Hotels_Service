@@ -18,10 +18,12 @@ import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Base64;
-import java.util.List;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
+import java.util.stream.Stream;
 
 @Service
 public class RoomService {
@@ -42,36 +44,6 @@ public class RoomService {
         this.entityManager = entityManager;
     }
 
-
-//    @KafkaListener(topics = "create_room_topic", groupId = "hotel_ml_rooms_and_hotels_service")
-//    private void createRoom(String message) throws Exception {
-//        try {
-//            JSONObject json = decodeMessage(message);
-//            String messageId = json.optString("messageId");
-//            RoomDto roomDto = new RoomDto();
-////            HotelDto hotelDto = HotelMapper.Instance.mapHotelToHotelDto(findHotelByName(json.optString("hotel")));
-//            HotelDto hotelDto = HotelMapper.Instance.mapHotelToHotelDto(hotelRepository.findByName(json.getString("hotel")));
-//            logger.severe(hotelDto.toString());
-//            roomDto.setNumber(json.optInt("number"));
-//            roomDto.setDescription(json.optString("description"));
-//            roomDto.setPrice(json.optDouble("price"));
-//            if (!json.optString("status").equals("FREE") && !json.optString("status").isEmpty()) {
-//                roomDto.setStatus(RoomStatus.valueOf(json.optString("status")));
-//            } else {
-//                roomDto.setStatus(RoomStatus.FREE);
-//            }
-//            roomDto.setNumberOfBeds(json.optInt("numberOfBeds"));
-//            roomDto.setHotelDto(hotelDto);
-//            roomRepository.save(RoomMapper.Instance.mapRoomDtoToRoom(roomDto));
-//            logger.info("Room was addedd: " + roomDto);
-//
-//            sendRequestMessage("Room Successfully added!", messageId, "success_request_topic");
-//
-//        } catch (Exception e) {
-//            logger.severe("Error while creating room: " + e.getMessage());
-//        }
-//    }
-
     @KafkaListener(topics = "create_room_topic", groupId = "hotel_ml_rooms_and_hotels_service")
     void createRoom(String message) throws Exception {
         try {
@@ -86,7 +58,8 @@ public class RoomService {
                 Room room;
                 roomDto.setNumber(json.optLong("number"));
                 roomDto.setDescription(json.optString("description"));
-                roomDto.setPrice(json.optDouble("price"));
+                roomDto.setWeekPrice(json.optDouble("weekPrice"));
+                roomDto.setWeekendPrice(json.optDouble("weekendPrice"));
                 roomDto.setNumberOfBeds(json.optInt("numberOfBeds"));
                 if (json.optString("status").isEmpty()) {
                     roomDto.setStatus(RoomStatus.OK);
@@ -98,6 +71,33 @@ public class RoomService {
                 roomRepository.save(room);
                 logger.info("Room was addedd: " + room);
                 sendRequestMessage("Room Successfully added!", messageId, "success_request_topic");
+            }
+
+        } catch (Exception e) {
+            logger.severe("Error while creating room: " + e.getMessage());
+        }
+    }
+
+    @KafkaListener(topics = "check_room_reservation_price", groupId = "hotel_ml_rooms_and_hotels_service")
+    void checkRoomPrice(String message) throws Exception {
+        try {
+            JSONObject json = decodeMessage(message);
+            String messageId = json.optString("messageId");
+
+            Room room = roomRepository.findByHotelNameAndHotelCityAndNumber(json.optString("hotelName"), json.optString("hotelCity"), json.optLong("roomNumber"));
+            double price;
+            LocalDate startDate = LocalDate.parse(json.optString("startDate"));
+            LocalDate endDate = LocalDate.parse(json.optString("endDate"));
+            Double weekPrice = room.getWeekPrice();
+            Double weekendPrice = room.getWeekendPrice();
+
+            Map<String, Integer> days = clarifyDayOfWeek(startDate, endDate);
+            price = (days.get("weekends") * weekendPrice + days.get("weekdays") * weekPrice);
+            if (room == null) {
+                sendRequestMessage("Error:Here will be error handler!", messageId, "error_request_topic");
+            } else {
+                logger.info("Room was addedd: " + room);
+                sendEncodedMessage(String.valueOf(price), messageId, "room_price_topic");
             }
 
         } catch (Exception e) {
@@ -156,6 +156,39 @@ public class RoomService {
             }
         }
         return null;
+    }
+
+    private Map<String, Integer> clarifyDayOfWeek(LocalDate startDate, LocalDate endDate) {
+        int weekdays = 0;
+        int weekends = 0;
+        Map<String, Integer> map = new HashMap<>();
+        Stream<LocalDate> dateStream = startDate.datesUntil(endDate.plusDays(1));
+        Iterator<LocalDate> dateIterator = dateStream.iterator();
+        while (dateIterator.hasNext()) {
+            LocalDate currentDate = dateIterator.next();
+            DayOfWeek dayOfWeek = currentDate.getDayOfWeek();
+
+            if (dayOfWeek == DayOfWeek.SATURDAY || dayOfWeek == DayOfWeek.SUNDAY) {
+                weekends++;
+            } else {
+                weekdays++;
+            }
+        }
+        map.put("weekdays", weekdays);
+        map.put("weekends", weekends);
+        return map;
+    }
+
+    private String sendEncodedMessage(String message, String messageId, String topic) {
+        JSONObject json = new JSONObject();
+        json.put("messageId", messageId);
+        json.put("message", message);
+        CompletableFuture<SendResult<String, String>> future = kafkaTemplate.send(topic, Base64.getEncoder().encodeToString(json.toString().getBytes()));
+        future.whenComplete((result, exception) -> {
+            if (exception != null) logger.severe(exception.getMessage());
+            else logger.info("Message send successfully!");
+        });
+        return message;
     }
 
 }

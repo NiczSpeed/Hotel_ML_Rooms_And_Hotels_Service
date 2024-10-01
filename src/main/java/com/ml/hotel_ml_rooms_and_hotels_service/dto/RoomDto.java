@@ -16,7 +16,8 @@ public class RoomDto {
     private Long number;
     private long numberOfBeds;
     private RoomStatus status;
-    private double price;
+    private double weekPrice;
+    private double weekendPrice;
     private String description;
 
 }
