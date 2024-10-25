@@ -25,8 +25,40 @@ public class KafkaTopicsConfiguration {
     }
 
     @Bean
+    public NewTopic requestAllHotelsTopic(){
+        return TopicBuilder.name("request_all_hotels_by_city_topic")
+                .partitions(12)
+                .replicas(3)
+                .build();
+    }
+
+    @Bean
+    public NewTopic responseAllHotelsTopic(){
+        return TopicBuilder.name("response_all_hotels_by_city_topic")
+                .partitions(12)
+                .replicas(3)
+                .build();
+    }
+
+    @Bean
+    public NewTopic requestAllHotelsCitiesTopic(){
+        return TopicBuilder.name("request_all_hotels_cities_topic")
+                .partitions(12)
+                .replicas(3)
+                .build();
+    }
+
+    @Bean
+    public NewTopic responseAllHotelsCitiesTopic(){
+        return TopicBuilder.name("response_all_hotels_cities_topic")
+                .partitions(12)
+                .replicas(3)
+                .build();
+    }
+
+    @Bean
     public NewTopic requestFreeHotelsTopic(){
-        return TopicBuilder.name("request_free_hotels")
+        return TopicBuilder.name("request_free_hotels_topic")
                 .partitions(12)
                 .replicas(3)
                 .build();
@@ -34,7 +66,7 @@ public class KafkaTopicsConfiguration {
 
     @Bean
     public NewTopic responseFreeHotelsTopic(){
-        return TopicBuilder.name("response_free_hotels")
+        return TopicBuilder.name("response_free_hotels_topic")
                 .partitions(12)
                 .replicas(3)
                 .build();
@@ -42,7 +74,7 @@ public class KafkaTopicsConfiguration {
 
     @Bean
     public NewTopic checkRoomReservationPriceTopic(){
-        return TopicBuilder.name("check_room_reservation_price")
+        return TopicBuilder.name("check_room_reservation_price_topic")
                 .partitions(12)
                 .replicas(3)
                 .build();

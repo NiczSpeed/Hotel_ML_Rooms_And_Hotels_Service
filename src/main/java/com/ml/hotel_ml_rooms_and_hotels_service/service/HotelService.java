@@ -60,7 +60,7 @@ public class HotelService {
         }
     }
 
-    @KafkaListener(topics = "request_free_hotels", groupId = "hotel_ml_rooms_and_hotels_service")
+    @KafkaListener(topics = "request_free_hotels_topic", groupId = "hotel_ml_rooms_and_hotels_service")
     private void getHotelsByCityAndDateWithFreeRooms(String message) throws Exception {
         try {
             JSONObject json = decodeMessage(message);
@@ -79,7 +79,55 @@ public class HotelService {
             } else {
                 filterFreeRooms(freeHotelsDto, reservationDataJson, reservationMessageId);
                 JSONArray jsonArray = new JSONArray(freeHotelsDto);
-                sendEncodedMessage(jsonArray.toString(), messageId, "response_free_hotels");
+                sendEncodedMessage(jsonArray.toString(), messageId, "response_free_hotels_topic");
+                logger.info("Message was send.");
+            }
+
+        } catch (Exception e) {
+            logger.severe("Error while getting hotels list!  " + e.getMessage());
+        }
+    }
+
+    @KafkaListener(topics = "request_all_hotels_by_city_topic", groupId = "hotel_ml_rooms_and_hotels_service")
+    private void getAllHotelByCity(String message) throws Exception {
+        try {
+            JSONObject json = decodeMessage(message);
+            String messageId = json.optString("messageId");
+
+            Set<Hotel> hotels = hotelRepository.findByCity(json.getString("city"));
+            Set<FreeHotelDto> freeHotelDtos = FreeHotelMapper.Instance.mapHotelSetToFreeHotelDtoSet(hotels);
+            Set<String> hotelsByCity = freeHotelDtos.stream().map(FreeHotelDto::getName).collect(Collectors.toSet());
+
+            if (hotelRepository.findAll().isEmpty()) {
+                sendRequestMessage("Error:There is no hotel to get list!", messageId, "error_request_topic");
+            } else {
+                JSONArray jsonArray = new JSONArray(hotelsByCity);
+                logger.severe(jsonArray.toString());
+                sendEncodedMessage(jsonArray.toString(), messageId, "response_free_hotels_topic");
+                logger.info("Message was send.");
+            }
+
+        } catch (Exception e) {
+            logger.severe("Error while getting hotels list!  " + e.getMessage());
+        }
+    }
+
+
+    @KafkaListener(topics = "request_all_hotels_cities_topic", groupId = "hotel_ml_rooms_and_hotels_service")
+    private void getAllHotelCities(String message) throws Exception {
+        try {
+            JSONObject json = decodeMessage(message);
+            String messageId = json.optString("messageId");
+
+            List<Hotel> hotels = hotelRepository.findAll();
+            List<HotelDto> hotelDtoList = HotelMapper.Instance.mapHotelListToHotelDtoList(hotels);
+            Set<String> hotelsCitiesList = hotelDtoList.stream().map(HotelDto::getCity).collect(Collectors.toSet());
+
+            if (hotelRepository.findAll().isEmpty()) {
+                sendRequestMessage("Error:There is no hotel to get list!", messageId, "error_request_topic");
+            } else {
+                JSONArray jsonArray = new JSONArray(hotelsCitiesList);
+                sendEncodedMessage(jsonArray.toString(), messageId, "response_all_hotels_cities_topic");
                 logger.info("Message was send.");
             }
 
@@ -116,7 +164,8 @@ public class HotelService {
     private String sendEncodedMessage(String message, String messageId, String topic) {
         JSONObject json = new JSONObject();
         json.put("messageId", messageId);
-        json.put("message", message);
+        if(message.contains("[")) json.put("message", new JSONArray(message));
+        else json.put("message", message);
         CompletableFuture<SendResult<String, String>> future = kafkaTemplate.send(topic, Base64.getEncoder().encodeToString(json.toString().getBytes()));
         future.whenComplete((result, exception) -> {
             if (exception != null) logger.severe(exception.getMessage());

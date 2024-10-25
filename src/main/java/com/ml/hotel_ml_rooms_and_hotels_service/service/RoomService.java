@@ -78,7 +78,7 @@ public class RoomService {
         }
     }
 
-    @KafkaListener(topics = "check_room_reservation_price", groupId = "hotel_ml_rooms_and_hotels_service")
+    @KafkaListener(topics = "check_room_reservation_price_topic", groupId = "hotel_ml_rooms_and_hotels_service")
     void checkRoomPrice(String message) throws Exception {
         try {
             JSONObject json = decodeMessage(message);

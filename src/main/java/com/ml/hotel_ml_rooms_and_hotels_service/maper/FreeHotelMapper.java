@@ -19,7 +19,6 @@ public interface FreeHotelMapper {
 
     FreeHotelDto mapHotelToFreeHotelDto(Hotel hotel);
 
-
     Set<Hotel> mapFreeHotelDtoSetToHotelSet(Set<HotelDto> hotelDtoSet);
     Set<FreeHotelDto> mapHotelSetToFreeHotelDtoSet(Set<Hotel> hotelSet);
 

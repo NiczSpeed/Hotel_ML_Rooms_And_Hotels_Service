@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.ml"
-version = "0.0.1-SNAPSHOT"
+version = "0.0.1"
 
 val mapstructVersion = "1.5.5.Final"
 val junitJupiterVersion = "5.10.2"
