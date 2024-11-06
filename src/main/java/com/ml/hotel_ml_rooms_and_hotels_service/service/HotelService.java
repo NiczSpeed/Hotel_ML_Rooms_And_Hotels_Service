@@ -68,21 +68,22 @@ public class HotelService {
             String reservationMessageId = UUID.randomUUID().toString();
             LocalDate startDate = LocalDate.parse(json.optString("startDate"));
             LocalDate endDate = LocalDate.parse(json.optString("endDate"));
-
-            JSONObject reservationDataJson = new JSONObject().put("startDate", startDate).put("endDate", endDate).put("city", json.optString("city"));
-
-            Set<Hotel> hotels = hotelRepository.findByCity(json.getString("city"));
-            Set<FreeHotelDto> freeHotelsDto = FreeHotelMapper.Instance.mapHotelSetToFreeHotelDtoSet(hotels);
-
-            if (hotelRepository.findAll().isEmpty()) {
-                sendRequestMessage("Error:There is no hotel to get list!", messageId, "error_request_topic");
+            if (LocalDate.parse(json.optString("startDate")).isBefore(LocalDate.now()) || LocalDate.parse(json.optString("endDate")).isBefore(LocalDate.now())) {
+                sendRequestMessage("Error:You are trying to pick a date from the past!", messageId, "error_request_topic");
             } else {
-                filterFreeRooms(freeHotelsDto, reservationDataJson, reservationMessageId);
-                JSONArray jsonArray = new JSONArray(freeHotelsDto);
-                sendEncodedMessage(jsonArray.toString(), messageId, "response_free_hotels_topic");
-                logger.info("Message was send.");
-            }
+                JSONObject reservationDataJson = new JSONObject().put("startDate", startDate).put("endDate", endDate).put("city", json.optString("city"));
+                Set<Hotel> hotels = hotelRepository.findByCity(json.getString("city"));
+                Set<FreeHotelDto> freeHotelsDto = FreeHotelMapper.Instance.mapHotelSetToFreeHotelDtoSet(hotels);
 
+                if (hotelRepository.findAll().isEmpty()) {
+                    sendRequestMessage("Error:There is no hotel to get list!", messageId, "error_request_topic");
+                } else {
+                    filterFreeRooms(freeHotelsDto, reservationDataJson, reservationMessageId);
+                    JSONArray jsonArray = new JSONArray(freeHotelsDto);
+                    sendEncodedMessage(jsonArray.toString(), messageId, "response_free_hotels_topic");
+                    logger.info("Message was send.");
+                }
+            }
         } catch (Exception e) {
             logger.severe("Error while getting hotels list!  " + e.getMessage());
         }
@@ -155,16 +156,10 @@ public class HotelService {
         return new JSONObject(message);
     }
 
-//    private String attachMessageId(String message, String messageId) {
-//        JSONObject json = new JSONObject(message);
-//        json.put("messageId", messageId);
-//        return json.toString();
-//    }
-
     private String sendEncodedMessage(String message, String messageId, String topic) {
         JSONObject json = new JSONObject();
         json.put("messageId", messageId);
-        if(message.contains("[")) json.put("message", new JSONArray(message));
+        if (message.contains("[")) json.put("message", new JSONArray(message));
         else json.put("message", message);
         CompletableFuture<SendResult<String, String>> future = kafkaTemplate.send(topic, Base64.getEncoder().encodeToString(json.toString().getBytes()));
         future.whenComplete((result, exception) -> {
@@ -199,12 +194,8 @@ public class HotelService {
                             return false;
                         }).collect(Collectors.toSet())
         ));
+        freeHotelDtoSet.removeIf(freeHotelDto -> freeHotelDto.getRooms().isEmpty());
 
-        freeHotelDtoSet.forEach(hotel -> {
-            if (hotel.getRooms().isEmpty()) {
-                freeHotelDtoSet.remove(hotel);
-            }
-        });
     }
 
     @KafkaListener(topics = "boolean_reservation_topic", groupId = "hotel_ml_rooms_and_hotels_service")
