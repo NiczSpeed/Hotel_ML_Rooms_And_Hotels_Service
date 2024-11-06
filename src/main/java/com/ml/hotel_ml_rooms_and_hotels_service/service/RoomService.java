@@ -60,7 +60,7 @@ public class RoomService {
                 roomDto.setDescription(json.optString("description"));
                 roomDto.setWeekPrice(json.optDouble("weekPrice"));
                 roomDto.setWeekendPrice(json.optDouble("weekendPrice"));
-                roomDto.setNumberOfBeds(json.optInt("numberOfBeds"));
+                roomDto.setNumberOfBeds(json.optLong("numberOfBeds"));
                 if (json.optString("status").isEmpty()) {
                     roomDto.setStatus(RoomStatus.OK);
                 } else {
@@ -83,20 +83,17 @@ public class RoomService {
         try {
             JSONObject json = decodeMessage(message);
             String messageId = json.optString("messageId");
-
             Room room = roomRepository.findByHotelNameAndHotelCityAndNumber(json.optString("hotelName"), json.optString("hotelCity"), json.optLong("roomNumber"));
             double price;
             LocalDate startDate = LocalDate.parse(json.optString("startDate"));
             LocalDate endDate = LocalDate.parse(json.optString("endDate"));
             Double weekPrice = room.getWeekPrice();
             Double weekendPrice = room.getWeekendPrice();
-
             Map<String, Integer> days = clarifyDayOfWeek(startDate, endDate);
             price = (days.get("weekends") * weekendPrice + days.get("weekdays") * weekPrice);
             if (room == null) {
                 sendRequestMessage("Error:Here will be error handler!", messageId, "error_request_topic");
             } else {
-                logger.info("Room was addedd: " + room);
                 sendEncodedMessage(String.valueOf(price), messageId, "room_price_topic");
             }
 

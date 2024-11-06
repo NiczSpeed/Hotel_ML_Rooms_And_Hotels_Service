@@ -1,8 +1,11 @@
 package com.ml.hotel_ml_rooms_and_hotels_service.model;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.ml.hotel_ml_rooms_and_hotels_service.utils.converters.IntegerConverter;
+import com.ml.hotel_ml_rooms_and_hotels_service.utils.converters.StringConverter;
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.jpa.convert.threeten.Jsr310JpaConverters;
 
 import java.util.Set;
 import java.util.UUID;
@@ -22,21 +25,27 @@ public class Hotel {
     private UUID uuid;
 
     @Column(name = "name")
+    @Convert(converter = StringConverter.class)
     private String name;
 
     @Column(name = "address")
+    @Convert(converter = StringConverter.class)
     private String address;
 
     @Column(name = "city")
+    @Convert(converter = StringConverter.class)
     private String city;
 
     @Column(name = "state")
+    @Convert(converter = StringConverter.class)
     private String state;
 
     @Column(name = "numberOfStars")
-    private int numberOfStars;
+    @Convert(converter = IntegerConverter.class)
+    private Integer numberOfStars;
 
     @Column(name = "contact")
+    @Convert(converter = StringConverter.class)
     private String contact;
 
 //    @JsonManagedReference
