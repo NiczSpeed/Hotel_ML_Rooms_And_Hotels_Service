@@ -30,7 +30,6 @@ public class Room {
     private Long numberOfBeds;
 
     @Column(name = "status")
-    @Convert(converter = StringConverter.class)
     private RoomStatus status;
 
     @Column(name = "weekPrice")
