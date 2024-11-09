@@ -18,5 +18,4 @@ public class ObjectMapperConfiguration {
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
                 .setSerializationInclusion(JsonInclude.Include.NON_NULL);
     }
-
 }

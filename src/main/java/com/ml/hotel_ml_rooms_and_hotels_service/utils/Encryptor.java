@@ -1,9 +1,10 @@
 package com.ml.hotel_ml_rooms_and_hotels_service.utils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ml.hotel_ml_rooms_and_hotels_service.exceptions.ErrorWhileDecodeException;
+import com.ml.hotel_ml_rooms_and_hotels_service.exceptions.ErrorWhileEncodeException;
 import jakarta.persistence.AttributeConverter;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
 
 @RequiredArgsConstructor
 public class Encryptor<T> implements AttributeConverter<T, String> {
@@ -13,25 +14,23 @@ public class Encryptor<T> implements AttributeConverter<T, String> {
     private final ObjectMapper objectMapper;
 
 
-    @SneakyThrows
     @Override
     public String convertToDatabaseColumn(T t) {
         try {
             String json = objectMapper.writeValueAsString(t);
             return encryptorUtil.encrypt(json);
         } catch (Exception e) {
-            throw new RuntimeException("A problem occurred during encryption!", e);
+            throw new ErrorWhileEncodeException();
         }
     }
 
-    @SneakyThrows
     @Override
     public T convertToEntityAttribute(String s) {
         try {
             String json = encryptorUtil.decrypt(s);
             return objectMapper.readValue(json, getTargetClass());
         } catch (Exception e) {
-            throw new RuntimeException("A problem occurred during decryption!", e);
+            throw new ErrorWhileDecodeException();
         }
     }
 

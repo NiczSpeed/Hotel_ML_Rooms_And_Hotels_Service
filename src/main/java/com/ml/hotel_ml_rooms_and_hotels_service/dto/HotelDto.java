@@ -4,10 +4,9 @@ import lombok.*;
 
 import java.util.Set;
 
-@Getter
-@Setter
 
 @Data
+@Builder
 @AllArgsConstructor
 @NoArgsConstructor
 public class HotelDto {

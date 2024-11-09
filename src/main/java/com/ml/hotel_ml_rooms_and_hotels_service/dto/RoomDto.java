@@ -4,12 +4,8 @@ import com.ml.hotel_ml_rooms_and_hotels_service.model.RoomStatus;
 import lombok.*;
 
 
-@Getter
-@Setter
-
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
+@Builder
 public class RoomDto {
 
     private Long number;

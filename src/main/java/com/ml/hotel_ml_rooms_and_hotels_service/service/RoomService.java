@@ -9,14 +9,15 @@ import com.ml.hotel_ml_rooms_and_hotels_service.model.Room;
 import com.ml.hotel_ml_rooms_and_hotels_service.model.RoomStatus;
 import com.ml.hotel_ml_rooms_and_hotels_service.repository.HotelRepository;
 import com.ml.hotel_ml_rooms_and_hotels_service.repository.RoomRepository;
+import com.ml.hotel_ml_rooms_and_hotels_service.utils.EncryptorUtil;
 import jakarta.persistence.EntityManager;
+import lombok.RequiredArgsConstructor;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -26,48 +27,43 @@ import java.util.logging.Logger;
 import java.util.stream.Stream;
 
 @Service
+@RequiredArgsConstructor
 public class RoomService {
 
     Logger logger = Logger.getLogger(getClass().getName());
 
     private final RoomRepository roomRepository;
     private final HotelRepository hotelRepository;
+    private final EncryptorUtil encryptorUtil;
     private final KafkaTemplate kafkaTemplate;
-    private final EntityManager entityManager;
-
-
-    @Autowired
-    public RoomService(RoomRepository roomRepository, HotelRepository hotelRepository, KafkaTemplate kafkaTemplate, EntityManager entityManager) {
-        this.roomRepository = roomRepository;
-        this.hotelRepository = hotelRepository;
-        this.kafkaTemplate = kafkaTemplate;
-        this.entityManager = entityManager;
-    }
 
     @KafkaListener(topics = "create_room_topic", groupId = "hotel_ml_rooms_and_hotels_service")
     void createRoom(String message) throws Exception {
         try {
-            JSONObject json = decodeMessage(message);
+            String decodedMessage = encryptorUtil.decrypt(message);
+            JSONObject json = new JSONObject(decodedMessage);
+            JSONObject jsonMessage = json.getJSONObject("message");
             String messageId = json.optString("messageId");
             if (hotelRepository.findAll().isEmpty()) {
                 sendRequestMessage("Error:There is no hotel to add rooms!", messageId, "error_request_topic");
-            } else if (!roomRepository.findAll().isEmpty() && hotelRepository.findByName(json.getString("hotel")).getRooms().stream().anyMatch(room -> room.getNumber() == json.getLong("number"))) {
+            } else if (!roomRepository.findAll().isEmpty() && hotelRepository.findByName(jsonMessage.getString("hotel")).getRooms().stream().anyMatch(room -> room.getNumber() == json.getLong("number"))) {
                 sendRequestMessage("Error:In this hotel already exist room with this number!", messageId, "error_request_topic");
             } else {
-                RoomDto roomDto = new RoomDto();
                 Room room;
-                roomDto.setNumber(json.optLong("number"));
-                roomDto.setDescription(json.optString("description"));
-                roomDto.setWeekPrice(json.optDouble("weekPrice"));
-                roomDto.setWeekendPrice(json.optDouble("weekendPrice"));
-                roomDto.setNumberOfBeds(json.optLong("numberOfBeds"));
+                RoomDto roomDto = RoomDto.builder()
+                        .number(jsonMessage.getLong("number"))
+                        .description(jsonMessage.getString("description"))
+                        .weekPrice(jsonMessage.optDouble("weekPrice"))
+                        .weekendPrice(jsonMessage.optDouble("weekendPrice"))
+                        .numberOfBeds(jsonMessage.optLong("numberOfBeds"))
+                        .build();
                 if (json.optString("status").isEmpty()) {
                     roomDto.setStatus(RoomStatus.OK);
                 } else {
                     roomDto.setStatus(RoomStatus.valueOf(json.optString("status")));
                 }
                 room = RoomMapper.Instance.mapRoomDtoToRoom(roomDto);
-                room.setHotel(hotelRepository.findByName(json.getString("hotel")));
+                room.setHotel(hotelRepository.findByName(jsonMessage.getString("hotel")));
                 roomRepository.save(room);
                 logger.info("Room was addedd: " + room);
                 sendRequestMessage("Room Successfully added!", messageId, "success_request_topic");
