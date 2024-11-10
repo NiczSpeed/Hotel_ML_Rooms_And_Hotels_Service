@@ -2,6 +2,7 @@ package com.ml.hotel_ml_rooms_and_hotels_service.service;
 
 import com.ml.hotel_ml_rooms_and_hotels_service.dto.HotelDto;
 import com.ml.hotel_ml_rooms_and_hotels_service.dto.RoomDto;
+import com.ml.hotel_ml_rooms_and_hotels_service.exceptions.ErrorWhileEncodeException;
 import com.ml.hotel_ml_rooms_and_hotels_service.maper.HotelMapper;
 import com.ml.hotel_ml_rooms_and_hotels_service.maper.RoomMapper;
 import com.ml.hotel_ml_rooms_and_hotels_service.model.Hotel;
@@ -12,6 +13,7 @@ import com.ml.hotel_ml_rooms_and_hotels_service.repository.RoomRepository;
 import com.ml.hotel_ml_rooms_and_hotels_service.utils.EncryptorUtil;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -77,12 +79,14 @@ public class RoomService {
     @KafkaListener(topics = "check_room_reservation_price_topic", groupId = "hotel_ml_rooms_and_hotels_service")
     void checkRoomPrice(String message) throws Exception {
         try {
-            JSONObject json = decodeMessage(message);
+            String decodedMessage = encryptorUtil.decrypt(message);
+            JSONObject json = new JSONObject(decodedMessage);
+            JSONObject jsonMessage = json.getJSONObject("message");
             String messageId = json.optString("messageId");
-            Room room = roomRepository.findByHotelNameAndHotelCityAndNumber(json.optString("hotelName"), json.optString("hotelCity"), json.optLong("roomNumber"));
+            Room room = roomRepository.findByHotelNameAndHotelCityAndNumber(jsonMessage.optString("hotelName"), jsonMessage.optString("hotelCity"), jsonMessage.optLong("roomNumber"));
             double price;
-            LocalDate startDate = LocalDate.parse(json.optString("startDate"));
-            LocalDate endDate = LocalDate.parse(json.optString("endDate"));
+            LocalDate startDate = LocalDate.parse(jsonMessage.optString("startDate"));
+            LocalDate endDate = LocalDate.parse(jsonMessage.optString("endDate"));
             Double weekPrice = room.getWeekPrice();
             Double weekendPrice = room.getWeekendPrice();
             Map<String, Integer> days = clarifyDayOfWeek(startDate, endDate);
@@ -94,7 +98,7 @@ public class RoomService {
             }
 
         } catch (Exception e) {
-            logger.severe("Error while creating room: " + e.getMessage());
+            logger.severe("Error while checking price!: " + e.getMessage());
         }
     }
 
@@ -122,24 +126,6 @@ public class RoomService {
             else logger.info("Message send successfully!");
         });
         return message;
-    }
-
-    private JSONObject decodeMessage(String message) {
-        byte[] decodedBytes = Base64.getDecoder().decode(message);
-        message = new String(decodedBytes);
-        return new JSONObject(message);
-    }
-
-    private HotelDto findHotelByName(String name) {
-        List<Hotel> hotels = hotelRepository.findAll();
-        HotelDto hotelDto;
-        for (Hotel hotel : hotels) {
-            if (hotel.getName().equals(name)) {
-                hotelDto = HotelMapper.Instance.mapHotelToHotelDto(hotel);
-                return hotelDto;
-            }
-        }
-        return null;
     }
 
     private Room findRoomByNumber(long number) {
@@ -173,15 +159,26 @@ public class RoomService {
     }
 
     private String sendEncodedMessage(String message, String messageId, String topic) {
-        JSONObject json = new JSONObject();
-        json.put("messageId", messageId);
-        json.put("message", message);
-        CompletableFuture<SendResult<String, String>> future = kafkaTemplate.send(topic, Base64.getEncoder().encodeToString(json.toString().getBytes()));
-        future.whenComplete((result, exception) -> {
-            if (exception != null) logger.severe(exception.getMessage());
-            else logger.info("Message send successfully!");
-        });
-        return message;
+        try {
+            JSONObject json = new JSONObject();
+            json.put("messageId", messageId);
+            if (message != null) {
+                switch (message) {
+                    case String s when s.contains("[") -> json.put("message", new JSONArray(s));
+                    case String s when s.contains("{") -> json.put("message", new JSONObject(s));
+                    default -> json.put("message", message);
+                }
+            }
+            String encodedMessage = encryptorUtil.encrypt(json.toString());
+            CompletableFuture<SendResult<String, String>> future = kafkaTemplate.send(topic, encodedMessage);
+            future.whenComplete((result, exception) -> {
+                if (exception != null) logger.severe(exception.getMessage());
+                else logger.info("Message send successfully!");
+            });
+            return message;
+        } catch (Exception e) {
+            throw new ErrorWhileEncodeException();
+        }
     }
 
 }

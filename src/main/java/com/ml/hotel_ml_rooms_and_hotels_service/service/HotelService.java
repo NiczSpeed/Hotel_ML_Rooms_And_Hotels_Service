@@ -70,16 +70,18 @@ public class HotelService {
     @KafkaListener(topics = "request_free_hotels_topic", groupId = "hotel_ml_rooms_and_hotels_service")
     private void getHotelsByCityAndDateWithFreeRooms(String message) throws Exception {
         try {
-            JSONObject json = decodeMessage(message);
+            String decodedMessage = encryptorUtil.decrypt(message);
+            JSONObject json = new JSONObject(decodedMessage);
             String messageId = json.optString("messageId");
+            JSONObject messageJson = json.getJSONObject("message");
             String reservationMessageId = UUID.randomUUID().toString();
-            LocalDate startDate = LocalDate.parse(json.optString("startDate"));
-            LocalDate endDate = LocalDate.parse(json.optString("endDate"));
-            if (LocalDate.parse(json.optString("startDate")).isBefore(LocalDate.now()) || LocalDate.parse(json.optString("endDate")).isBefore(LocalDate.now())) {
+            LocalDate startDate = LocalDate.parse(messageJson.optString("startDate"));
+            LocalDate endDate = LocalDate.parse(messageJson.optString("endDate"));
+            if (LocalDate.parse(messageJson.optString("startDate")).isBefore(LocalDate.now()) || LocalDate.parse(messageJson.optString("endDate")).isBefore(LocalDate.now())) {
                 sendRequestMessage("Error:You are trying to pick a date from the past!", messageId, "error_request_topic");
             } else {
-                JSONObject reservationDataJson = new JSONObject().put("startDate", startDate).put("endDate", endDate).put("city", json.optString("city"));
-                Set<Hotel> hotels = hotelRepository.findByCity(json.getString("city"));
+                JSONObject reservationDataJson = new JSONObject().put("startDate", startDate).put("endDate", endDate).put("city", messageJson.optString("city"));
+                Set<Hotel> hotels = hotelRepository.findByCity(messageJson.getString("city"));
                 Set<FreeHotelDto> freeHotelsDto = FreeHotelMapper.Instance.mapHotelSetToFreeHotelDtoSet(hotels);
 
                 if (hotelRepository.findAll().isEmpty()) {
@@ -110,7 +112,6 @@ public class HotelService {
                 sendRequestMessage("Error:There is no hotel to get list!", messageId, "error_request_topic");
             } else {
                 JSONArray jsonArray = new JSONArray(hotelsByCity);
-                logger.severe(jsonArray.toString());
                 sendEncodedMessage(jsonArray.toString(), messageId, "response_all_hotels_by_city_topic");
                 logger.info("Message was send.");
             }
@@ -123,9 +124,9 @@ public class HotelService {
     @KafkaListener(topics = "request_all_hotels_cities_topic", groupId = "hotel_ml_rooms_and_hotels_service")
     private void getAllHotelCities(String message) throws Exception {
         try {
-            JSONObject json = decodeMessage(message);
+            String decodedMessage = encryptorUtil.decrypt(message);
+            JSONObject json = new JSONObject(decodedMessage);
             String messageId = json.optString("messageId");
-
             List<Hotel> hotels = hotelRepository.findAll();
             List<HotelDto> hotelDtoList = HotelMapper.Instance.mapHotelListToHotelDtoList(hotels);
             Set<String> hotelsCitiesList = hotelDtoList.stream().map(HotelDto::getCity).collect(Collectors.toSet());
@@ -156,18 +157,18 @@ public class HotelService {
         return message;
     }
 
-    private JSONObject decodeMessage(String message) {
-        byte[] decodedBytes = Base64.getDecoder().decode(message);
-        message = new String(decodedBytes);
-        return new JSONObject(message);
-    }
 
     private String sendEncodedMessage(String message, String messageId, String topic) {
         try {
             JSONObject json = new JSONObject();
             json.put("messageId", messageId);
-            if (message.contains("[")) json.put("message", new JSONArray(message));
-            else json.put("message", message);
+            if (message != null) {
+                switch (message) {
+                    case String s when s.contains("[") -> json.put("message", new JSONArray(s));
+                    case String s when s.contains("{") -> json.put("message", new JSONObject(s));
+                    default -> json.put("message", message);
+                }
+            }
             String encodedMessage = encryptorUtil.encrypt(json.toString());
             CompletableFuture<SendResult<String, String>> future = kafkaTemplate.send(topic, encodedMessage);
             future.whenComplete((result, exception) -> {
@@ -189,9 +190,7 @@ public class HotelService {
                             if (!room.getStatus().equals(RoomStatus.TEMPORARILY_UNAVAILABLE)) {
                                 json.put("hotel", hotel.getName());
                                 json.put("room", room.getNumber());
-                                JSONObject messageJson = new JSONObject().put("message", json);
-                                String messageWithId = attachMessageId(messageJson.toString(), messageId);
-                                kafkaTemplate.send("check_reservation_topic", Base64.getEncoder().encodeToString(messageWithId.getBytes()));
+                                sendEncodedMessage(json.toString(), messageId, "check_reservation_topic");
                                 try {
                                     String response = responseFuture.get(5, TimeUnit.SECONDS);
                                     responseFutures.remove(messageId);
