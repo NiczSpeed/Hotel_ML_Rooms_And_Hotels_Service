@@ -1,11 +1,9 @@
 package com.ml.hotel_ml_rooms_and_hotels_service.model;
 
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.ml.hotel_ml_rooms_and_hotels_service.utils.converters.IntegerConverter;
 import com.ml.hotel_ml_rooms_and_hotels_service.utils.converters.StringConverter;
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.jpa.convert.threeten.Jsr310JpaConverters;
 
 import java.util.Set;
 import java.util.UUID;
@@ -47,10 +45,6 @@ public class Hotel {
     @Column(name = "contact")
     @Convert(converter = StringConverter.class)
     private String contact;
-
-//    @JsonManagedReference
-//    @OneToMany(mappedBy = "hotel", fetch = FetchType.EAGER)
-//    private Set<Room> rooms;
 
     @OneToMany(mappedBy = "hotel", fetch = FetchType.EAGER)
     private Set<Room> rooms;
