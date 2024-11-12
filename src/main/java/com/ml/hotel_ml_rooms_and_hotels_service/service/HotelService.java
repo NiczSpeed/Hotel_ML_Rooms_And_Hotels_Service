@@ -73,21 +73,21 @@ public class HotelService {
             String decodedMessage = encryptorUtil.decrypt(message);
             JSONObject json = new JSONObject(decodedMessage);
             String messageId = json.optString("messageId");
-            JSONObject messageJson = json.getJSONObject("message");
+            JSONObject jsonMessage = json.getJSONObject("message");
             String reservationMessageId = UUID.randomUUID().toString();
-            LocalDate startDate = LocalDate.parse(messageJson.optString("startDate"));
-            LocalDate endDate = LocalDate.parse(messageJson.optString("endDate"));
-            if (LocalDate.parse(messageJson.optString("startDate")).isBefore(LocalDate.now()) || LocalDate.parse(messageJson.optString("endDate")).isBefore(LocalDate.now())) {
+//            LocalDate startDate = LocalDate.parse(jsonMessage.optString("startDate"));
+//            LocalDate endDate = LocalDate.parse(jsonMessage.optString("endDate"));
+            if (LocalDate.parse(jsonMessage.optString("startDate")).isBefore(LocalDate.now()) || LocalDate.parse(jsonMessage.optString("endDate")).isBefore(LocalDate.now())) {
                 sendRequestMessage("Error:You are trying to pick a date from the past!", messageId, "error_request_topic");
             } else {
-//                JSONObject reservationDataJson = new JSONObject().put("startDate", startDate).put("endDate", endDate).put("city", messageJson.optString("city")););
-                Set<Hotel> hotels = hotelRepository.findByCity(messageJson.getString("city"));
+//                JSONObject reservationDataJson = new JSONObject().put("startDate", startDate).put("endDate", endDate).put("city", jsonMessage.optString("city"));
+                Set<Hotel> hotels = hotelRepository.findByCity(jsonMessage.getString("city"));
                 Set<FreeHotelDto> freeHotelsDto = FreeHotelMapper.Instance.mapHotelSetToFreeHotelDtoSet(hotels);
 
                 if (hotelRepository.findAll().isEmpty()) {
                     sendRequestMessage("Error:There is no hotel to get list!", messageId, "error_request_topic");
                 } else {
-                    filterFreeRooms(freeHotelsDto, messageJson, reservationMessageId);
+                    filterFreeRooms(freeHotelsDto, jsonMessage);
                     JSONArray jsonArray = new JSONArray(freeHotelsDto);
                     sendEncodedMessage(jsonArray.toString(), messageId, "response_free_hotels_topic");
                     logger.info("Message was send.");
@@ -104,8 +104,8 @@ public class HotelService {
             String decodedMessage = encryptorUtil.decrypt(message);
             JSONObject json = new JSONObject(decodedMessage);
             String messageId = json.optString("messageId");
-            JSONObject messageJson = json.getJSONObject("message");
-            Set<Hotel> hotels = hotelRepository.findByCity(messageJson.getString("city"));
+            JSONObject jsonMessage = json.getJSONObject("message");
+            Set<Hotel> hotels = hotelRepository.findByCity(jsonMessage.getString("city"));
             Set<FreeHotelDto> freeHotelDtos = FreeHotelMapper.Instance.mapHotelSetToFreeHotelDtoSet(hotels);
             Set<String> hotelsByCity = freeHotelDtos.stream().map(FreeHotelDto::getName).collect(Collectors.toSet());
             if (hotelRepository.findAll().isEmpty()) {
@@ -181,13 +181,14 @@ public class HotelService {
         }
     }
 
-    private void filterFreeRooms(Set<FreeHotelDto> freeHotelDtoSet, JSONObject json, String messageId) {
-        CompletableFuture<String> responseFuture = new CompletableFuture<>();
-        responseFutures.put(messageId, responseFuture);
+    private void filterFreeRooms(Set<FreeHotelDto> freeHotelDtoSet, JSONObject json) {
         freeHotelDtoSet.forEach(hotel -> hotel.setRooms(
                 hotel.getRooms().stream()
                         .filter(room -> {
                             if (!room.getStatus().equals(RoomStatus.TEMPORARILY_UNAVAILABLE) && room.getNumberOfBeds() >= json.optLong("numberOfBeds")) {
+                                CompletableFuture<String> responseFuture = new CompletableFuture<>();
+                                String messageId = UUID.randomUUID().toString();
+                                responseFutures.put(messageId, responseFuture);
                                 json.put("hotel", hotel.getName());
                                 json.put("room", room.getNumber());
                                 sendEncodedMessage(json.toString(), messageId, "check_reservation_topic");

@@ -47,8 +47,13 @@ public class RoomService {
             JSONObject jsonMessage = json.getJSONObject("message");
             String messageId = json.optString("messageId");
             if (hotelRepository.findAll().isEmpty()) {
+                logger.severe("There is no hotel to add rooms!");
                 sendRequestMessage("Error:There is no hotel to add rooms!", messageId, "error_request_topic");
-            } else if (!roomRepository.findAll().isEmpty() && hotelRepository.findByName(jsonMessage.getString("hotel")).getRooms().stream().anyMatch(room -> room.getNumber() == json.getLong("number"))) {
+            } else if(hotelRepository.findByName(jsonMessage.optString("hotel")) == null) {
+                logger.severe("Hotel with such a name does not exist!");
+                sendRequestMessage("Error:Hotel with such a name does not exist!", messageId, "error_request_topic");
+            } else if (!roomRepository.findAll().isEmpty() && hotelRepository.findByName(jsonMessage.getString("hotel")).getRooms().stream().anyMatch(room -> room.getNumber() == jsonMessage.getLong("number"))) {
+                logger.severe("In this hotel already exist room with this number!");
                 sendRequestMessage("Error:In this hotel already exist room with this number!", messageId, "error_request_topic");
             } else {
                 Room room;
@@ -59,7 +64,7 @@ public class RoomService {
                         .weekendPrice(jsonMessage.optDouble("weekendPrice"))
                         .numberOfBeds(jsonMessage.optLong("numberOfBeds"))
                         .build();
-                if (json.optString("status").isEmpty()) {
+                if (jsonMessage.optString("status").isEmpty()) {
                     roomDto.setStatus(RoomStatus.OK);
                 } else {
                     roomDto.setStatus(RoomStatus.valueOf(json.optString("status")));
