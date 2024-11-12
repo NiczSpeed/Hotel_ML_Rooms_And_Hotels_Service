@@ -80,14 +80,14 @@ public class HotelService {
             if (LocalDate.parse(messageJson.optString("startDate")).isBefore(LocalDate.now()) || LocalDate.parse(messageJson.optString("endDate")).isBefore(LocalDate.now())) {
                 sendRequestMessage("Error:You are trying to pick a date from the past!", messageId, "error_request_topic");
             } else {
-                JSONObject reservationDataJson = new JSONObject().put("startDate", startDate).put("endDate", endDate).put("city", messageJson.optString("city"));
+//                JSONObject reservationDataJson = new JSONObject().put("startDate", startDate).put("endDate", endDate).put("city", messageJson.optString("city")););
                 Set<Hotel> hotels = hotelRepository.findByCity(messageJson.getString("city"));
                 Set<FreeHotelDto> freeHotelsDto = FreeHotelMapper.Instance.mapHotelSetToFreeHotelDtoSet(hotels);
 
                 if (hotelRepository.findAll().isEmpty()) {
                     sendRequestMessage("Error:There is no hotel to get list!", messageId, "error_request_topic");
                 } else {
-                    filterFreeRooms(freeHotelsDto, reservationDataJson, reservationMessageId);
+                    filterFreeRooms(freeHotelsDto, messageJson, reservationMessageId);
                     JSONArray jsonArray = new JSONArray(freeHotelsDto);
                     sendEncodedMessage(jsonArray.toString(), messageId, "response_free_hotels_topic");
                     logger.info("Message was send.");
@@ -187,7 +187,7 @@ public class HotelService {
         freeHotelDtoSet.forEach(hotel -> hotel.setRooms(
                 hotel.getRooms().stream()
                         .filter(room -> {
-                            if (!room.getStatus().equals(RoomStatus.TEMPORARILY_UNAVAILABLE)) {
+                            if (!room.getStatus().equals(RoomStatus.TEMPORARILY_UNAVAILABLE) && room.getNumberOfBeds() >= json.optLong("numberOfBeds")) {
                                 json.put("hotel", hotel.getName());
                                 json.put("room", room.getNumber());
                                 sendEncodedMessage(json.toString(), messageId, "check_reservation_topic");
