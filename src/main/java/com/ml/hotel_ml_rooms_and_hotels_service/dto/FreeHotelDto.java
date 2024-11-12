@@ -12,7 +12,7 @@ import java.util.Set;
 public class FreeHotelDto {
 
     private String name;
-    private int numberOfStars;
+    private Integer numberOfStars;
     private String contact;
     private Set<RoomDto> rooms;
 

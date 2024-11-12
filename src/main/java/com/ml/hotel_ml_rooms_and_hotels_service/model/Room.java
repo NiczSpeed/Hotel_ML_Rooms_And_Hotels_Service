@@ -1,10 +1,11 @@
 package com.ml.hotel_ml_rooms_and_hotels_service.model;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.ml.hotel_ml_rooms_and_hotels_service.utils.converters.DoubleConverter;
+import com.ml.hotel_ml_rooms_and_hotels_service.utils.converters.LongConverter;
+import com.ml.hotel_ml_rooms_and_hotels_service.utils.converters.StringConverter;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
@@ -25,24 +26,23 @@ public class Room {
     private Long number;
 
     @Column(name = "numberOfBeds")
-    private long numberOfBeds;
+    @Convert(converter = LongConverter.class)
+    private Long numberOfBeds;
 
     @Column(name = "status")
     private RoomStatus status;
 
     @Column(name = "weekPrice")
-    private double weekPrice;
+    @Convert(converter = DoubleConverter.class)
+    private Double weekPrice;
 
     @Column(name = "weekendPrice")
-    private double weekendPrice;
+    @Convert(converter = DoubleConverter.class)
+    private Double weekendPrice;
 
     @Column(name = "description")
+    @Convert(converter = StringConverter.class)
     private String description;
-
-//    @JsonBackReference
-//    @ManyToOne
-//    private Hotel hotel;
-
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "hotel_uuid", referencedColumnName = "uuid")

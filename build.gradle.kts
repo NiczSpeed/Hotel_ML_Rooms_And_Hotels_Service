@@ -11,6 +11,7 @@ val mapstructVersion = "1.5.5.Final"
 val junitJupiterVersion = "5.10.2"
 val instancioVersion = "4.4.0"
 val jsonVersion = "20240303"
+val jacksonVersion = "2.17.2"
 
 java {
     toolchain {
@@ -34,6 +35,10 @@ dependencies {
     implementation("org.springframework.kafka:spring-kafka")
     implementation("org.mapstruct:mapstruct:${mapstructVersion}")
     implementation("org.json:json:${jsonVersion}")
+    implementation ("com.fasterxml.jackson.core:jackson-core:${jacksonVersion}")
+    implementation ("com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}")
+    implementation ("com.fasterxml.jackson.core:jackson-annotations:${jacksonVersion}")
+    implementation ("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${jacksonVersion}")
     compileOnly("org.projectlombok:lombok")
     runtimeOnly("org.postgresql:postgresql")
     annotationProcessor("org.projectlombok:lombok")
