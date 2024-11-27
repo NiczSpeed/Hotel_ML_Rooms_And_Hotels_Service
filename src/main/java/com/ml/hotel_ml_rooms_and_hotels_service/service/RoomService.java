@@ -1,21 +1,16 @@
 package com.ml.hotel_ml_rooms_and_hotels_service.service;
 
-import com.ml.hotel_ml_rooms_and_hotels_service.dto.HotelDto;
 import com.ml.hotel_ml_rooms_and_hotels_service.dto.RoomDto;
 import com.ml.hotel_ml_rooms_and_hotels_service.exceptions.ErrorWhileEncodeException;
-import com.ml.hotel_ml_rooms_and_hotels_service.maper.HotelMapper;
 import com.ml.hotel_ml_rooms_and_hotels_service.maper.RoomMapper;
-import com.ml.hotel_ml_rooms_and_hotels_service.model.Hotel;
 import com.ml.hotel_ml_rooms_and_hotels_service.model.Room;
 import com.ml.hotel_ml_rooms_and_hotels_service.model.RoomStatus;
 import com.ml.hotel_ml_rooms_and_hotels_service.repository.HotelRepository;
 import com.ml.hotel_ml_rooms_and_hotels_service.repository.RoomRepository;
 import com.ml.hotel_ml_rooms_and_hotels_service.utils.EncryptorUtil;
-import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
@@ -23,7 +18,9 @@ import org.springframework.stereotype.Service;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
@@ -47,8 +44,13 @@ public class RoomService {
             JSONObject jsonMessage = json.getJSONObject("message");
             String messageId = json.optString("messageId");
             if (hotelRepository.findAll().isEmpty()) {
+                logger.severe("There is no hotel to add rooms!");
                 sendRequestMessage("Error:There is no hotel to add rooms!", messageId, "error_request_topic");
-            } else if (!roomRepository.findAll().isEmpty() && hotelRepository.findByName(jsonMessage.getString("hotel")).getRooms().stream().anyMatch(room -> room.getNumber() == json.getLong("number"))) {
+            } else if (hotelRepository.findByName(jsonMessage.optString("hotel")) == null) {
+                logger.severe("Hotel with such a name does not exist!");
+                sendRequestMessage("Error:Hotel with such a name does not exist!", messageId, "error_request_topic");
+            } else if (!roomRepository.findAll().isEmpty() && hotelRepository.findByName(jsonMessage.getString("hotel")).getRooms().stream().anyMatch(room -> room.getNumber() == jsonMessage.getLong("number"))) {
+                logger.severe("In this hotel already exist room with this number!");
                 sendRequestMessage("Error:In this hotel already exist room with this number!", messageId, "error_request_topic");
             } else {
                 Room room;
@@ -59,10 +61,10 @@ public class RoomService {
                         .weekendPrice(jsonMessage.optDouble("weekendPrice"))
                         .numberOfBeds(jsonMessage.optLong("numberOfBeds"))
                         .build();
-                if (json.optString("status").isEmpty()) {
+                if (jsonMessage.optString("status").isEmpty()) {
                     roomDto.setStatus(RoomStatus.OK);
                 } else {
-                    roomDto.setStatus(RoomStatus.valueOf(json.optString("status")));
+                    roomDto.setStatus(RoomStatus.valueOf(jsonMessage.optString("status")));
                 }
                 room = RoomMapper.Instance.mapRoomDtoToRoom(roomDto);
                 room.setHotel(hotelRepository.findByName(jsonMessage.getString("hotel")));
