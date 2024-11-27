@@ -9,8 +9,6 @@ import java.util.UUID;
 @Repository
 public interface RoomRepository extends JpaRepository<Room, UUID> {
 
-    Room findByNumber(Long number);
-    Room findByHotelName(String hotelName);
     Room findByHotelNameAndHotelCityAndNumber(String hotelName, String hotelCity, Long roomNumber);
 
 }

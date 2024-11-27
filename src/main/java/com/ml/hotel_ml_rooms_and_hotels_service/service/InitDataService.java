@@ -8,7 +8,6 @@ import com.ml.hotel_ml_rooms_and_hotels_service.model.RoomStatus;
 import com.ml.hotel_ml_rooms_and_hotels_service.repository.HotelRepository;
 import com.ml.hotel_ml_rooms_and_hotels_service.repository.RoomRepository;
 import jakarta.annotation.PostConstruct;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -34,7 +33,7 @@ public class InitDataService {
         }
     }
 
-    @Transactional
+
     protected void initHotels() {
         if (hotelRepository.count() == 0) {
             Hotel santaHotel = Hotel.builder()
@@ -66,7 +65,7 @@ public class InitDataService {
         }
     }
 
-    @Transactional
+
     protected void initRooms() {
         if (roomRepository.count() == 0) {
             Room santaHotel1= Room.builder()

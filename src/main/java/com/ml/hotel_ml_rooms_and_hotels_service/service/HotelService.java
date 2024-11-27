@@ -8,7 +8,6 @@ import com.ml.hotel_ml_rooms_and_hotels_service.maper.HotelMapper;
 import com.ml.hotel_ml_rooms_and_hotels_service.model.Hotel;
 import com.ml.hotel_ml_rooms_and_hotels_service.model.RoomStatus;
 import com.ml.hotel_ml_rooms_and_hotels_service.repository.HotelRepository;
-import com.ml.hotel_ml_rooms_and_hotels_service.repository.RoomRepository;
 import com.ml.hotel_ml_rooms_and_hotels_service.utils.EncryptorUtil;
 import lombok.RequiredArgsConstructor;
 import org.json.JSONArray;
@@ -28,7 +27,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class HotelService {
 
-    private final RoomRepository roomRepository;
     Logger logger = Logger.getLogger(getClass().getName());
 
     private final Map<String, CompletableFuture<String>> responseFutures = new ConcurrentHashMap<>();
@@ -47,6 +45,7 @@ public class HotelService {
             Hotel checkHotel = hotelRepository.findByName(jsonMessage.optString("name"));
             if (checkHotel != null && checkHotel.getName().equals(jsonMessage.optString("name"))) {
                 sendRequestMessage("Error:Hotel with this name already exist!", messageId, "error_request_topic");
+                logger.severe("Error:Hotel with this name already exist!");
             } else {
                 HotelDto hotelDto = HotelDto.builder()
                         .name(jsonMessage.optString("name"))
@@ -59,8 +58,8 @@ public class HotelService {
                         .build();
                 Hotel hotel = HotelMapper.Instance.mapHotelDtoToHotel(hotelDto);
                 hotelRepository.save(hotel);
-                logger.info("Hotel was addedd: " + hotel);
                 sendRequestMessage("Hotel Successfully added!", messageId, "success_request_topic");
+                logger.info("Hotel successfully added:Message was sent.");
             }
         } catch (Exception e) {
             logger.severe("Error while creating hotel: " + e.getMessage());
@@ -74,23 +73,21 @@ public class HotelService {
             JSONObject json = new JSONObject(decodedMessage);
             String messageId = json.optString("messageId");
             JSONObject jsonMessage = json.getJSONObject("message");
-            String reservationMessageId = UUID.randomUUID().toString();
-//            LocalDate startDate = LocalDate.parse(jsonMessage.optString("startDate"));
-//            LocalDate endDate = LocalDate.parse(jsonMessage.optString("endDate"));
             if (LocalDate.parse(jsonMessage.optString("startDate")).isBefore(LocalDate.now()) || LocalDate.parse(jsonMessage.optString("endDate")).isBefore(LocalDate.now())) {
                 sendRequestMessage("Error:You are trying to pick a date from the past!", messageId, "error_request_topic");
+                logger.severe("Error:You are trying to pick a date from the past!");
             } else {
-//                JSONObject reservationDataJson = new JSONObject().put("startDate", startDate).put("endDate", endDate).put("city", jsonMessage.optString("city"));
                 Set<Hotel> hotels = hotelRepository.findByCity(jsonMessage.getString("city"));
                 Set<FreeHotelDto> freeHotelsDto = FreeHotelMapper.Instance.mapHotelSetToFreeHotelDtoSet(hotels);
 
                 if (hotelRepository.findAll().isEmpty()) {
                     sendRequestMessage("Error:There is no hotel to get list!", messageId, "error_request_topic");
+                    logger.severe("Error:There is no hotel to get list!");
                 } else {
                     filterFreeRooms(freeHotelsDto, jsonMessage);
                     JSONArray jsonArray = new JSONArray(freeHotelsDto);
                     sendEncodedMessage(jsonArray.toString(), messageId, "response_free_hotels_topic");
-                    logger.info("Message was send.");
+                    logger.info("Free hotels:Message was sent.");
                 }
             }
         } catch (Exception e) {
@@ -113,13 +110,12 @@ public class HotelService {
             } else {
                 JSONArray jsonArray = new JSONArray(hotelsByCity);
                 sendEncodedMessage(jsonArray.toString(), messageId, "response_all_hotels_by_city_topic");
-                logger.info("Message was send.");
+                logger.info("All hotels by city:Message was sent.");
             }
         } catch (Exception e) {
             logger.severe("Error while getting hotels list!  " + e.getMessage());
         }
     }
-
 
     @KafkaListener(topics = "request_all_hotels_cities_topic", groupId = "hotel_ml_rooms_and_hotels_service")
     private void getAllHotelCities(String message) throws Exception {
@@ -130,20 +126,17 @@ public class HotelService {
             List<Hotel> hotels = hotelRepository.findAll();
             List<HotelDto> hotelDtoList = HotelMapper.Instance.mapHotelListToHotelDtoList(hotels);
             Set<String> hotelsCitiesList = hotelDtoList.stream().map(HotelDto::getCity).collect(Collectors.toSet());
-
             if (hotelRepository.findAll().isEmpty()) {
                 sendRequestMessage("Error:There is no hotel to get list!", messageId, "error_request_topic");
             } else {
                 JSONArray jsonArray = new JSONArray(hotelsCitiesList);
                 sendEncodedMessage(jsonArray.toString(), messageId, "response_all_hotels_cities_topic");
-                logger.info("Message was send.");
+                logger.info("All hotels cities:Message was sent.");
             }
-
         } catch (Exception e) {
             logger.severe("Error while getting hotels list!  " + e.getMessage());
         }
     }
-
 
     private String sendRequestMessage(String message, String messageId, String topic) {
         JSONObject json = new JSONObject();
@@ -152,11 +145,9 @@ public class HotelService {
         CompletableFuture<SendResult<String, String>> future = kafkaTemplate.send(topic, json.toString());
         future.whenComplete((result, exception) -> {
             if (exception != null) logger.severe(exception.getMessage());
-            else logger.info("Message send successfully!");
         });
         return message;
     }
-
 
     private String sendEncodedMessage(String message, String messageId, String topic) {
         try {
@@ -173,7 +164,6 @@ public class HotelService {
             CompletableFuture<SendResult<String, String>> future = kafkaTemplate.send(topic, encodedMessage);
             future.whenComplete((result, exception) -> {
                 if (exception != null) logger.severe(exception.getMessage());
-                else logger.info("Message send successfully!");
             });
             return message;
         } catch (Exception e) {
@@ -222,16 +212,8 @@ public class HotelService {
         }
     }
 
-
     String extractMessageId(String message) {
         JSONObject json = new JSONObject(message);
         return json.optString("messageId");
     }
-
-    String attachMessageId(String message, String messageId) {
-        JSONObject json = new JSONObject(message);
-        json.put("messageId", messageId);
-        return json.toString();
-    }
-
 }
