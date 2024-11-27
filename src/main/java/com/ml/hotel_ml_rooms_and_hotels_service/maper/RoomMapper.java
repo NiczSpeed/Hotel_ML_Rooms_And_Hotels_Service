@@ -12,10 +12,5 @@ public interface RoomMapper {
 
     RoomMapper Instance = Mappers.getMapper(RoomMapper.class);
 
-
     Room mapRoomDtoToRoom(RoomDto roomDto);
-
-    RoomDto mapRoomToRoomDto(Room room);
-
-
 }

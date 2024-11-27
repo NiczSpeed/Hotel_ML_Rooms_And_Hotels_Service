@@ -44,14 +44,14 @@ public class RoomService {
             JSONObject jsonMessage = json.getJSONObject("message");
             String messageId = json.optString("messageId");
             if (hotelRepository.findAll().isEmpty()) {
-                logger.severe("There is no hotel to add rooms!");
                 sendRequestMessage("Error:There is no hotel to add rooms!", messageId, "error_request_topic");
+                logger.severe("Error:There is no hotel to add rooms!");
             } else if (hotelRepository.findByName(jsonMessage.optString("hotel")) == null) {
-                logger.severe("Hotel with such a name does not exist!");
                 sendRequestMessage("Error:Hotel with such a name does not exist!", messageId, "error_request_topic");
+                logger.severe("Error:Hotel with such a name does not exist!");
             } else if (!roomRepository.findAll().isEmpty() && hotelRepository.findByName(jsonMessage.getString("hotel")).getRooms().stream().anyMatch(room -> room.getNumber() == jsonMessage.getLong("number"))) {
-                logger.severe("In this hotel already exist room with this number!");
                 sendRequestMessage("Error:In this hotel already exist room with this number!", messageId, "error_request_topic");
+                logger.severe("Error:In this hotel already exist room with this number!");
             } else {
                 Room room;
                 RoomDto roomDto = RoomDto.builder()
@@ -69,8 +69,8 @@ public class RoomService {
                 room = RoomMapper.Instance.mapRoomDtoToRoom(roomDto);
                 room.setHotel(hotelRepository.findByName(jsonMessage.getString("hotel")));
                 roomRepository.save(room);
-                logger.info("Room was addedd: " + room);
                 sendRequestMessage("Room Successfully added!", messageId, "success_request_topic");
+                logger.info("Room successfully added:Message was sent.");
             }
 
         } catch (Exception e) {
@@ -94,49 +94,25 @@ public class RoomService {
             Map<String, Integer> days = clarifyDayOfWeek(startDate, endDate);
             price = (days.get("weekends") * weekendPrice + days.get("weekdays") * weekPrice);
             if (room == null) {
-                sendRequestMessage("Error:Here will be error handler!", messageId, "error_request_topic");
+                sendRequestMessage("Error:There is no room to check price!", messageId, "error_request_topic");
+                logger.severe("Error:There is no room to check price");
             } else {
                 sendEncodedMessage(String.valueOf(price), messageId, "room_price_topic");
+                logger.info("Room price check successfully:Message was sent.");
             }
-
         } catch (Exception e) {
             logger.severe("Error while checking price!: " + e.getMessage());
         }
     }
 
-
-    private void changeRoomStatus(long roomNumber, RoomStatus newStatus) {
-        try {
-            RoomDto roomDto = RoomMapper.Instance.mapRoomToRoomDto(findRoomByNumber(roomNumber));
-            if (roomDto != null) {
-                roomDto.setStatus(newStatus);
-                roomRepository.save(RoomMapper.Instance.mapRoomDtoToRoom(roomDto));
-            }
-        } catch (Exception e) {
-            logger.severe("Error while changing room status: " + e.getMessage());
-        }
-    }
-
-
-    private String sendRequestMessage(String message, String messageId, String topic) {
+    private void sendRequestMessage(String message, String messageId, String topic) {
         JSONObject json = new JSONObject();
         json.put("messageId", messageId);
         json.put("message", message);
         CompletableFuture<SendResult<String, String>> future = kafkaTemplate.send(topic, json.toString());
         future.whenComplete((result, exception) -> {
             if (exception != null) logger.severe(exception.getMessage());
-            else logger.info("Message send successfully!");
         });
-        return message;
-    }
-
-    private Room findRoomByNumber(long number) {
-        for (Room room : roomRepository.findAll()) {
-            if (room.getNumber() == number) {
-                return room;
-            }
-        }
-        return null;
     }
 
     private Map<String, Integer> clarifyDayOfWeek(LocalDate startDate, LocalDate endDate) {
@@ -175,7 +151,6 @@ public class RoomService {
             CompletableFuture<SendResult<String, String>> future = kafkaTemplate.send(topic, encodedMessage);
             future.whenComplete((result, exception) -> {
                 if (exception != null) logger.severe(exception.getMessage());
-                else logger.info("Message send successfully!");
             });
             return message;
         } catch (Exception e) {

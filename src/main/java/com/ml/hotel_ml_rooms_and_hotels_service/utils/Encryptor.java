@@ -9,10 +9,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class Encryptor<T> implements AttributeConverter<T, String> {
 
-
     private final EncryptorUtil encryptorUtil;
     private final ObjectMapper objectMapper;
-
 
     @Override
     public String convertToDatabaseColumn(T t) {
