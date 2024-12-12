@@ -88,13 +88,6 @@ public class KafkaTopicsConfiguration {
                 .build();
     }
 
-    @Bean
-    public NewTopic responseCreateReservationTopic(){
-        return TopicBuilder.name("response_create_reservation_topic")
-                .partitions(12)
-                .replicas(3)
-                .build();
-    }
 
 
 }
