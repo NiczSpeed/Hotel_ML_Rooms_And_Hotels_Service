@@ -98,28 +98,28 @@ These diagrams illustrate the main object-oriented structure of the application,
 #### 🛡️ Encryption Classes
 This diagram illustrates encryption classes in service
 
-🔗 [View the encryption classes](docs/Entity/Hotel_ML_Rooms_And_Hotels_Service_Diagram_encryption.svg)
+🔗 [View the encryption classes](docs/Class/Hotel_ML_Rooms_And_Hotels_Service_Diagram_encryption.svg)
 
 ---
 
 #### 🚨 Exception Classes
 This diagram illustrates exception classes in service
 
-🔗 [View the exception classes](docs/Entity/Hotel_ML_Rooms_And_Hotels_Service_Diagram_Exceptions.svg)
+🔗 [View the exception classes](docs/Class/Hotel_ML_Rooms_And_Hotels_Service_Diagram_Exceptions.svg)
 
 ---
 
 #### ⚙️ Configuration Classes
 This diagram ilustrates configuration classes in service
 
-🔗 [View the configuration classes](docs/Entity/Hotel_ML_Rooms_And_Hotels_Service_Diagram_Configuration.svg)
+🔗 [View the configuration classes](docs/Class/Hotel_ML_Rooms_And_Hotels_Service_Diagram_Configuration.svg)
 
 ---
 
 #### 🚀 Data Initialization Classes
 This diagram ilustrates data initialization classes in service
 
-🔗 [View the data initialization classes](docs/Entity/Hotel_ML_Rooms_And_Hotels_Service_Diagram_Data_Initialization.svg)
+🔗 [View the data initialization classes](docs/Class/Hotel_ML_Rooms_And_Hotels_Service_Diagram_Data_Initialization.svg)
 
 ---
 
@@ -133,8 +133,8 @@ The diagrams presents the concepts of Producer, Listener, Listener-Coordinator, 
 * Listener-Coordinator – both listens for messages and distributes information to multiple services using multithreading.
 * Listener-Responder – receives a message and directly returns a response to the sender, without additional multithreading layers.
 
-🔗 [View the hotel business logic classes](docs/Entity/Hotel_ML_Rooms_And_Hotels_Service_Diagram_Business_Logic_Hotel.svg)
+🔗 [View the hotel business logic classes](docs/Class/Hotel_ML_Rooms_And_Hotels_Service_Diagram_Business_Logic_Hotel.svg)
 
-🔗 [View the room business logic classes](docs/Entity/Hotel_ML_Rooms_And_Hotels_Service_Diagram_Business_Logic_Room.svg)
+🔗 [View the room business logic classes](docs/Class/Hotel_ML_Rooms_And_Hotels_Service_Diagram_Business_Logic_Room.svg)
 
 ---
